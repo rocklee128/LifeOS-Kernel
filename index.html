@@ -105,6 +105,34 @@
             { id: "q12_meaning", module: "M4 • 能量熵增", label: "系统损耗 / 愿景对齐", question: "如果给一千万让你永远停止现在做的事？", options: [{val:"A",text:"狂喜",s:0}, {val:"B",text:"犹豫",s:30}, {val:"C",text:"会拿(偷偷做)",s:70}, {val:"D",text:"拒绝",s:100}] }
         ];
 
+        const TACTICAL_PROBES = {
+            "GOLDEN_HANDCUFFS": { question: "阻碍你跳出‘高薪陷阱’的最大恐惧是什么？", options: [{id:"MONEY",text:"A. 生存降级：怕断供",route:"FINANCE_PRESSURE"}, {id:"EGO",text:"B. 身份落差：怕没光环",route:"IDENTITY_TEST"}] },
+            "FOUNDERS_TRAP": { question: "你不敢彻底放权的真实原因？", options: [{id:"TRUST",text:"A. 不信任：怕搞砸",route:"TRUST_BUILD"}, {id:"STD",text:"B. 没标准：非标业务",route:"SOP_SYSTEM"}] },
+            "UNDERVALUED": { question: "为什么还没变现？", options: [{id:"SHAME",text:"A. 商业羞耻：不好意思卖",route:"SALES_BREAK"}, {id:"UNKNOWN",text:"B. 渠道闭塞：没流量",route:"TRAFFIC_HACK"}] },
+            "FRAGILE_MIDDLE": { question: "如果明天行业消失？", options: [{id:"PANIC",text:"A. 大脑空白",route:"SKILL_BACKUP"}, {id:"NETWORK",text:"B. 有朋友能帮",route:"NETWORK_ACTIVATE"}] },
+            "SURVIVAL_MODE": { question: "你手里哪怕一点点的资源是？", options: [{id:"TIME",text:"A. 时间：能吃苦",route:"LABOR_CASH"}, {id:"SKILL",text:"B. 技能：没客户",route:"SKILL_CASH"}] },
+            "STAGNANT": { question: "最缺乏的是？", options: [{id:"STIM",text:"A. 刺激",route:"CHAOS_INJECT"}, {id:"DIR",text:"B. 方向",route:"VISION_QUEST"}] },
+            "FREEDOM_LEADER": { question: "核心驱动力？", options: [{id:"LEGACY",text:"A. 传承",route:"MENTORSHIP"}, {id:"PLAY",text:"B. 好奇",route:"NEW_GAME"}] }
+        };
+
+        const MVP_MISSIONS = {
+            "FINANCE_PRESSURE": { title: "财务底线测算", time: "2h", cost: "0元", desc: "恐惧源于未知。计算如果卖房/换车/砍掉奢侈消费，存款能支撑多久？看到具体数字，恐惧会消失。", steps: ["列出每月最低生存支出", "计算现有资产变现价值", "得出‘自由年限’"] },
+            "IDENTITY_TEST": { title: "战略性做减法", time: "1天", cost: "社交货币", desc: "找出业务中‘利润最低耗时最多’的项目，主动切断。或拒绝一个非核心会议。验证：天塌不下来。", steps: ["识别‘有毒’业务", "发送终止合作邮件", "记录心理感受"] },
+            "TRUST_BUILD": { title: "小额放权测试", time: "1次", cost: "500元风险", desc: "给下属任务，告诉他：‘损失500元也不怪你，你自己定’。强迫自己闭嘴、不看、不插手。", steps: ["选定小任务", "授权并免责", "物理隔离"] },
+            "SOP_SYSTEM": { title: "工作录屏移交", time: "1h", cost: "0元", desc: "录屏你每天重复做的一件事，一边做一边讲解。发给助理，宣布：‘以后看视频，别问我’。", steps: ["识别重复工作", "录制全过程", "交付索引"] },
+            "SALES_BREAK": { title: "高客单提案", time: "3天", cost: "0元", desc: "设计一个高价服务方案，向一位潜在客户提案。不要怕被拒绝，目的是打破羞耻，测试价值上限。", steps: ["设计顶级方案", "寻找高净值目标", "发送提案"] },
+            "TRAFFIC_HACK": { title: "干货小清单", time: "4h", cost: "0元", desc: "把最擅长的技能浓缩成‘清单’（避坑指南/模版）。发到公域，目标是获得10个陌生人感谢。", steps: ["提炼痛点", "制作内容", "发布分发"] },
+            "SKILL_BACKUP": { title: "B计划草稿", time: "2h", cost: "0元", desc: "假设明天主业消失，写下3个你能立即去做的替代职业。这不是为了辞职，是为了建立心理安全垫。", steps: ["列出核心可迁移技能", "寻找3个相关行业", "写下第一步行动"] },
+            "NETWORK_ACTIVATE": { title: "弱关系激活", time: "30min", cost: "0元", desc: "给5个半年没联系的朋友发信息，不群发，只问候。激活你的社交网络，寻找潜在机会。", steps: ["筛选5位关键联系人", "发送个性化问候", "不带目的性地交流"] },
+            "LABOR_CASH": { title: "现金流测试", time: "24h", cost: "0元", desc: "注册同城跑腿或众包平台，接3单。这能让你重新感受现金流动的物理反馈，找回生存手感。", steps: ["注册平台", "完成实名认证", "接3个简单订单"] },
+            "SKILL_CASH": { title: "技能最小闭环", time: "3h", cost: "0元", desc: "在闲鱼/Fiverr上架一个具体的微服务（如P图/翻译），定价极低。验证有没有陌生人愿意为你付费。", steps: ["包装服务话术", "发布商品", "等待咨询"] },
+            "CHAOS_INJECT": { title: "随机漫步", time: "半天", cost: "车费", desc: "去一个从未去过的城市角落，不看地图，随机行走。打破生活的惯性，重置大脑的多巴胺阈值。", steps: ["关掉导航", "随机上车", "观察并记录"] },
+            "VISION_QUEST": { title: "墓志铭撰写", time: "1h", cost: "0元", desc: "如果今天就是终点，你希望墓碑上刻什么？写下来。然后反推你现在最该做的一件事。", steps: ["静坐思考", "写下终极愿景", "倒推本月目标"] },
+            "MENTORSHIP": { title: "薪火传承", time: "长期", cost: "心力", desc: "寻找一个像年轻时的你一样的年轻人，免费指导他。不是为了钱，是为了精神延续。", steps: ["锁定一位潜力股", "提供一次深度指导", "观察反馈"] },
+            "NEW_GAME": { title: "新手模式", time: "1月", cost: "学费", desc: "去学一个你完全笨拙的技能（如乐器/编程），重新体验‘什么都不懂’的感觉。保持谦卑。", steps: ["选定陌生领域", "报名入门课", "坚持练习"] },
+            "DEFAULT": { title: "24h 极简生存", time: "24h", cost: "0元", desc: "通用重置程序。下个周末，断网、不花钱、不工作。排空多巴胺，重启感知力。", steps: ["关闭手机", "封锁钱包", "独处"] }
+        };
+
         const PERSONA_DB = {
             "SURVIVAL_MODE": { label: "生存危机型", verdict: "你的商业模式已击穿盈亏平衡点。", desc: "现金流极度脆弱。首要任务是止血和快速变现。", priority: "止血 & 现金流" },
             "GOLDEN_HANDCUFFS": { label: "金手铐综合症", verdict: "你拥有高溢价，但本质是“高级耗材”。", desc: "有钱没时间。生活方式锁死了收入结构。你在消耗生命换取货币。", priority: "赎回时间 & 降级" },
@@ -524,5 +552,3 @@
     </script>
 </body>
 </html>
-
-
