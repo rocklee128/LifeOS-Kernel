@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeOS: 完整生存审计与行动系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Serif+SC:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #050505;
+            --card-bg: #0a0a0a;
+            --paper-bg: #fffbf0;
+            --border: #27272a;
+            --accent: #00f0ff; /* 审计阶段：赛博蓝 */
+            --gold: #FFD700;   /* 行动阶段：黑金 */
+            --danger: #ff2a6d;
+            --text-main: #e4e4e7;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .serif { font-family: 'Noto Serif SC', serif; }
+
+        /* 动画定义 */
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .glow-pulse { animation: glowPulse 3s infinite ease-in-out; }
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.1); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.4); }
+        }
+
+        /* 3D 翻转效果 */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+
+        /* 通用组件样式 */
+        .option-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .option-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #555;
+            transform: translateY(-2px);
+        }
+        
+        .expert-card {
+            background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .bg-grid {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        
+        .social-btn { transition: all 0.2s; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==========================================
+        // 1. 数据配置 (完整版)
+        // ==========================================
+        
+        // 审计问题配置
+        const DEEP_AUDIT_QUESTIONS = [
+            { id: "q1_runway", module: "M1_FINANCIAL", label: "财务健康 / 生存底气", question: "如果明天所有主动收入突然归零，你能维持多久？", options: [
+                { val: "A", text: "立即崩溃 (< 1个月)", score: 0 }, { val: "B", text: "焦虑支撑 (1-6个月)", score: 30 },
+                { val: "C", text: "有调整期 (6-18个月)", score: 60 }, { val: "D", text: "生存无忧 (> 18个月)", score: 100 }
+            ]},
+            { id: "q4_control", module: "M2_TIME", label: "时间自主 / 颗粒度", question: "打开你的日历，谁在决定你每天怎么过？", options: [
+                { val: "A", text: "他人主导 (随时被打断)", score: 10 }, { val: "B", text: "锯齿状 (大部分被动)", score: 40 },
+                { val: "C", text: "模块化 (有免打扰时间)", score: 70 }, { val: "D", text: "完全自主 (只做想做的事)", score: 100 }
+            ]},
+            { id: "q7_keyman", module: "M3_RISK", label: "风险护城河 / 关键人", question: "如果作为CEO的你突然住院一个月，业务会怎样？", options: [
+                { val: "A", text: "彻底瘫痪", risk: "FATAL" }, { val: "B", text: "陷入混乱，收入大降", risk: "HIGH" },
+                { val: "C", text: "短暂波动", risk: "MED" }, { val: "D", text: "毫无影响", risk: "LOW" }
+            ]},
+            { id: "q8_replace", module: "M3_RISK", label: "风险护城河 / 被替代难度", question: "如果老板或市场想找人替代你，难度多大？", options: [
+                { val: "A", text: "极易 (毕业生/GPT可替)", moat: 0 }, { val: "B", text: "中等 (需培训几个月)", moat: 30 },
+                { val: "C", text: "困难 (需特定技能)", moat: 70 }, { val: "D", text: "极难 (我是IP本身)", moat: 100 }
+            ]},
+            { id: "q9_dep", module: "M3_RISK", label: "风险护城河 / 客户集中度", question: "你的收入来源是否依赖单一渠道？", options: [
+                { val: "A", text: "单点依赖 (断供即归零)", risk: "FATAL" }, { val: "B", text: "双轨制", risk: "MED" },
+                { val: "C", text: "多点支撑", risk: "LOW" }, { val: "D", text: "生态化", risk: "NONE" }
+            ]}
+        ];
+
+        // 战术探测问题（连接审计与行动的桥梁）
+        const TACTICAL_PROBES = {
+            "GOLDEN_HANDCUFFS": { 
+                question: "阻碍你跳出‘高薪陷阱’的最大恐惧是什么？",
+                options: [
+                    { id: "MONEY", text: "A. 生存降级：怕断供，没法维持体面生活", route: "FINANCE_PRESSURE" },
+                    { id: "EGO", text: "B. 身份落差：怕离开平台，光环消失没人理", route: "IDENTITY_TEST" }
+                ]
+            },
+            "FOUNDERS_TRAP": { 
+                question: "你不敢彻底放权给下属的真实原因是什么？",
+                options: [
+                    { id: "TRUST", text: "A. 能力不信任：怕他们搞砸，不如我自己做快", route: "TRUST_BUILD" },
+                    { id: "STD", text: "B. 缺乏标准：这是非标业务，只有我懂怎么做", route: "SOP_SYSTEM" }
+                ]
+            },
+            "UNDERVALUED": { 
+                question: "你拥有能力，但为什么还没变现？",
+                options: [
+                    { id: "SHAME", text: "A. 商业羞耻：觉得谈钱很俗，不好意思销售", route: "SALES_BREAK" },
+                    { id: "UNKNOWN", text: "B. 渠道闭塞：产品很好，但不知道去哪找客户", route: "TRAFFIC_HACK" }
+                ]
+            },
+            "FRAGILE_MIDDLE": { 
+                question: "如果明天你的行业突然消失，你的第一反应是？",
+                options: [
+                    { id: "PANIC", text: "A. 大脑空白，除了这个我什么都不会", route: "SKILL_BACKUP" },
+                    { id: "NETWORK", text: "B. 我有朋友，但不知道谁能帮我转型", route: "NETWORK_ACTIVATE" }
+                ]
+            },
+            "SURVIVAL_MODE": { 
+                question: "在当下，你手里哪怕只有一点点的资源是什么？",
+                options: [
+                    { id: "TIME", text: "A. 时间：我有大把时间，吃苦没问题", route: "LABOR_CASH" },
+                    { id: "SKILL", text: "B. 技能：我有一技之长，但没客户", route: "SKILL_CASH" }
+                ]
+            },
+            "STAGNANT": { 
+                question: "你现在最缺乏的是什么？",
+                options: [
+                    { id: "STIM", text: "A. 刺激：生活像死水，毫无波澜", route: "CHAOS_INJECT" },
+                    { id: "DIR", text: "B. 方向：想改变，但不知道往哪走", route: "VISION_QUEST" }
+                ]
+            },
+            "FREEDOM_LEADER": { 
+                question: "你现在的核心驱动力是？",
+                options: [
+                    { id: "LEGACY", text: "A. 传承：想留下点东西给世界", route: "MENTORSHIP" },
+                    { id: "PLAY", text: "B. 好奇：想探索未知的领域", route: "NEW_GAME" }
+                ]
+            }
+        };
+
+        // MVP 任务库
+        const MVP_MISSIONS = {
+            "FINANCE_PRESSURE": { title: "降级沙盘推演", time: "2小时", cost: "0元", desc: "恐惧源于未知。打开Excel，计算如果卖房/换车/砍掉奢侈消费，你的存款能支撑你‘不工作’生活多久？你要看到那个具体的数字（如‘5年’），恐惧才会消失。", steps: ["列出每月最低生存支出", "计算现有资产变现价值", "得出‘自由年限’"] },
+            "IDENTITY_TEST": { title: "战略性做减法", time: "1天", cost: "社交货币", desc: "找出你目前业务中‘利润最低但耗时最多’的那个客户或项目，主动切断合作。或者在工作中拒绝一个非核心会议。验证：天塌不下来。", steps: ["识别‘有毒’业务", "发送终止合作邮件/拒绝参会", "记录心理感受"] },
+            "TRUST_BUILD": { title: "500元 犯错基金", time: "1次任务", cost: "500元风险", desc: "给下属一项完整任务，并明确告诉他：‘即使损失 500 元也不怪你，你自己决定怎么做’。强迫自己闭嘴、不看、不插手。测试团队的自愈力。", steps: ["选定一个小任务", "授权并承诺免责", "物理隔离（离开公司/不回消息）"] },
+            "SOP_SYSTEM": { title: "克隆人计划 (录屏SOP)", time: "1小时", cost: "0元", desc: "打开录屏软件，把你每天重复做的一件事录下来，一边做一边讲解细节。直接发给助理或团队，并宣布：‘以后这件事看视频，别问我’。", steps: ["识别重复性工作", "录制全过程", "交付并建立索引"] },
+            "SALES_BREAK": { title: "高客单提案 (High-Ticket Pitch)", time: "3天", cost: "0元", desc: "设计一个比你现在价格高 5-10 倍的服务方案。向一位潜在的高净值客户（或老板）进行提案。不要怕被拒绝，你的目的是打破金钱羞耻，测试价值上限。", steps: ["设计顶级服务方案", "寻找一位高净值目标", "发送提案并请求反馈"] },
+            "TRAFFIC_HACK": { title: "知识胶囊 (Knowledge Capsule)", time: "4小时", cost: "0元", desc: "停止输入！把你最擅长的技能，浓缩成一个解决具体问题的‘胶囊’（清单/模版/3分钟视频）。发到公域平台，目标是获得 10 个陌生人的感谢。", steps: ["提炼一个痛点解法", "制作极简内容", "发布并分发"] },
+            "DEFAULT": { title: "24小时 极简生存测试", time: "24小时", cost: "0元", desc: "这是一个通用重置程序。下个周末，断网、不花钱、不工作。只喝水和散步。排空系统的多巴胺，重启你的感知力。", steps: ["关闭手机", "封锁钱包", "独处"] }
+        };
+
+        // 逻辑引擎：计算用户画像
+        const calculatePersona = (answers) => {
+            const getVal = (id) => answers[id]?.val || 'A';
+            
+            // 逻辑规则
+            if (['D'].includes(getVal('q1_runway')) && ['D'].includes(getVal('q4_control'))) return { id: "FREEDOM_LEADER", label: "自由领航者", desc: "你的系统极其健壮，实现了从“谋生”到“设计生活”的跃迁。", priority: "寻找改变世界的支点" };
+            if (getVal('q1_runway') === 'A') return { id: "SURVIVAL_MODE", label: "生存危机型", desc: "你的财务防线已击穿。首要任务不是战略，而是止血与生存。", priority: "建立现金流缓冲" };
+            if (['C','D'].includes(getVal('q1_runway')) && ['A','B'].includes(getVal('q4_control'))) return { id: "GOLDEN_HANDCUFFS", label: "金手铐综合症", desc: "你拥有高薪，但生活方式锁死了你的自由。你不敢停下，因为你是系统唯一的支柱。", priority: "购买时间 & 资产重组" };
+            if (['A','B'].includes(getVal('q7_keyman')) && ['C','D'].includes(getVal('q1_runway'))) return { id: "FOUNDERS_TRAP", label: "创始人陷阱", desc: "公司越大，你越累。你成为了企业发展的最大瓶颈。", priority: "建立SOP & 授权机制" };
+            if (getVal('q9_dep') === 'A') return { id: "FRAGILE_MIDDLE", label: "脆弱中产型", desc: "表面光鲜，实则如履薄冰。单点依赖是你最大的系统性风险。", priority: "发展第二曲线" };
+            if (['C','D'].includes(getVal('q8_replace'))) return { id: "UNDERVALUED", label: "资产错配型", desc: "你有极高的无形资产，但缺乏商业杠杆。你在贱卖你的才华。", priority: "寻找杠杆 (营销/人脉)" };
+
+            return { id: "STAGNANT", label: "平庸稳健型", desc: "处于安全区，也处于平庸区。如果不寻找不对称机会，将被时代慢速淘汰。", priority: "寻找非线性机会" };
+        };
+
+        // ==========================================
+        // 2. 界面组件 (Components)
+        // ==========================================
+
+        // 2.1 引导页
+        const Intro = ({ onStart }) => (
+            <div className="min-h-screen bg-grid flex flex-col items-center justify-center p-6 text-center fade-in">
+                <div className="max-w-2xl mx-auto border border-zinc-800 bg-black/80 backdrop-blur p-8 md:p-12 rounded-2xl shadow-2xl">
+                    <div className="text-xs font-mono text-[var(--accent)] mb-6 tracking-widest border border-[var(--accent)]/30 inline-block px-3 py-1 rounded-full bg-[var(--accent)]/10">LIFE_DUE_DILIGENCE_V2.0</div>
+                    <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white tracking-tight">个人生存逻辑<br/><span className="text-[var(--accent)]">深度审计</span></h1>
+                    <p className="text-zinc-400 mb-10 leading-relaxed text-sm md:text-base">我们将这辆名为“你”的无限责任公司吊起来，<br/>通过咨询级维度，彻底检查底盘与引擎。<br/>这不仅关乎金钱，更关乎<span className="text-white font-bold">自由与控制权</span>。</p>
+                    <button onClick={onStart} className="group relative px-10 py-4 bg-white text-black font-bold font-mono text-sm hover:bg-[var(--accent)] transition-all rounded">[ 开始尽职调查 ]</button>
+                </div>
+            </div>
+        );
+
+        // 2.2 答题页
+        const QuestionScreen = ({ data, current, total, onSelect }) => {
+            const [animating, setAnimating] = useState(false);
+            const handleSelect = (opt) => {
+                setAnimating(true);
+                setTimeout(() => { setAnimating(false); onSelect(opt); }, 300);
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col bg-grid">
+                    <div className="fixed top-0 left-0 w-full h-1 bg-zinc-900 z-50">
+                        <div className="h-full bg-[var(--accent)] transition-all duration-300" style={{width: `${((current + 1) / total) * 100}%`}}></div>
+                    </div>
+                    <div className={`flex-1 flex flex-col justify-center max-w-2xl mx-auto px-6 pt-12 pb-12 w-full transition-opacity duration-300 ${animating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+                        <div className="mb-2 text-[var(--accent)] font-mono text-xs tracking-wider uppercase opacity-80">{data.module}</div>
+                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-6">{data.question}</h2>
+                        <div className="space-y-4">
+                            {data.options.map((opt, idx) => (
+                                <div key={idx} onClick={() => handleSelect(opt)} className="option-card p-5 rounded-lg cursor-pointer group flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <span className="flex items-center justify-center w-6 h-6 rounded-full border border-zinc-700 text-[10px] font-mono text-zinc-500 group-hover:border-[var(--accent)] group-hover:text-[var(--accent)] transition-colors">{opt.val}</span>
+                                        <span className="text-sm md:text-base font-medium text-zinc-300 group-hover:text-white transition-colors">{opt.text}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2.3 计算中
+        const Processing = ({ onComplete }) => {
+            const [log, setLog] = useState("> CONNECTING...");
+            useEffect(() => {
+                const logs = ["> ANALYZING FINANCIAL STRUCTURE...", "> DETECTING KEY MAN RISKS...", "> CALCULATING TIME OWNERSHIP...", "> GENERATING REPORT..."];
+                let i = 0;
+                const interval = setInterval(() => { if (i < logs.length) { setLog(logs[i]); i++; } }, 600);
+                setTimeout(onComplete, 2500);
+                return () => clearInterval(interval);
+            }, []);
+            return (
+                <div className="h-screen flex flex-col items-center justify-center bg-black font-mono">
+                    <div className="w-12 h-12 border-2 border-zinc-800 border-t-[var(--accent)] rounded-full animate-spin mb-8"></div>
+                    <div className="text-[var(--accent)] text-sm mb-2">{log}</div>
+                </div>
+            );
+        };
+
+        // 2.4 审计结果概览
+        const ResultView = ({ persona, onNext }) => (
+    <div className="min-h-screen bg-grid pt-24 px-6 pb-20 fade-in flex items-center justify-center">
+        <div className="max-w-2xl w-full text-center">
+            <div className="border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-8 rounded-2xl mb-8 relative overflow-hidden">
+                <div className="font-mono text-xs text-[var(--accent)] mb-4 tracking-widest uppercase">Audit Conclusion</div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{persona.label}</h2>
+                <p className="text-zinc-300 text-sm md:text-base leading-relaxed max-w-lg mx-auto mb-6">{persona.desc}</p>
+                <div className="inline-block bg-white/10 px-4 py-2 rounded text-xs font-mono text-white border border-white/20">首要行动: {persona.priority}</div>
+            </div>
+            <button onClick={onNext} className="w-full py-5 bg-white text-black font-bold text-lg rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group">
+                <span className="group-hover:animate-pulse">⚡</span> 获取具体行动方案 (Action Plan) <span>→</span>
+            </button>
+        </div>
+    </div>
+);
+
+        // 2.5 战术探测页 (连接行动)
+        const ProbeView = ({ personaId, onSelect }) => {
+            const probe = TACTICAL_PROBES[personaId] || TACTICAL_PROBES["STAGNANT"];
+            
+            // 确保图标刷新
+            useEffect(() => { if(window.lucide) window.lucide.createIcons(); }, []);
+
+            return (
+                <div className="min-h-screen bg-black flex flex-col justify-center items-center px-6 fade-in">
+                    <div className="max-w-2xl w-full">
+                        <div className="flex items-center gap-3 mb-8">
+                            <span className="w-3 h-3 bg-[var(--accent)] rounded-full animate-pulse"></span>
+                            <span className="text-[var(--accent)] font-mono text-sm tracking-[0.2em] uppercase">The Pivot Point</span>
+                        </div>
+                        <h2 className="text-3xl md:text-4xl font-black text-white mb-8 leading-tight">关键抉择</h2>
+                        <p className="text-lg md:text-xl text-zinc-300 mb-10 font-serif border-l-4 border-[var(--accent)] pl-6 py-2">"{probe.question}"</p>
+                        <div className="space-y-6">
+                            {probe.options.map((opt) => (
+                                <button key={opt.id} onClick={() => onSelect(opt.route)} className="w-full text-left p-6 border border-zinc-800 bg-zinc-900/50 rounded-2xl hover:border-[var(--accent)] hover:bg-[var(--accent)]/5 transition-all group relative overflow-hidden">
+                                    <div className="relative z-10 flex justify-between items-center">
+                                        <div>
+                                            <div className="text-white font-bold text-lg mb-1 group-hover:text-[var(--accent)] transition-colors">{opt.text.split('：')[0]}</div>
+                                            <div className="text-zinc-500 text-sm group-hover:text-zinc-300 transition-colors">{opt.text.split('：')[1]}</div>
+                                        </div>
+                                        <i data-lucide="arrow-right" className="text-zinc-700 group-hover:text-[var(--accent)] transform group-hover:translate-x-2 transition-transform"></i>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2.6 最终任务卡片 (含专家卡)
+        const MissionCard = ({ missionId }) => {
+            const task = MVP_MISSIONS[missionId] || MVP_MISSIONS["DEFAULT"];
+            const [flipped, setFlipped] = useState(false);
+            const [committed, setCommitted] = useState(false);
+            const [showQR, setShowQR] = useState(false);
+
+            // 翻转或状态改变时刷新图标
+            useEffect(() => { if(window.lucide) window.lucide.createIcons(); }, [flipped, committed, showQR]);
+
+            const handleCommit = (e) => {
+                e.stopPropagation();
+                setCommitted(true);
+            };
+
+            return (
+                <div className="min-h-screen bg-black flex flex-col justify-center items-center px-6 fade-in bg-grid py-12 relative overflow-y-auto">
+                    <div className="w-full max-w-md h-[600px] perspective-1000 group mb-8" onClick={() => !committed && setFlipped(!flipped)}>
+                        <div className={`relative w-full h-full duration-700 transform-style-3d transition-transform ${flipped ? 'rotate-y-180' : ''} cursor-pointer`}>
+                            {/* 正面: 黄金门票 */}
+                            <div className="absolute w-full h-full backface-hidden bg-[#0f0f0f] border border-zinc-800 rounded-2xl flex flex-col items-center justify-center p-8 hover:border-[var(--gold)] transition-colors shadow-2xl glow-pulse">
+                                <div className="w-32 h-32 rounded-full border-2 border-[var(--gold)]/30 flex items-center justify-center mb-8 relative">
+                                    <div className="absolute inset-0 rounded-full border border-[var(--gold)]/10 scale-125"></div>
+                                    <i data-lucide="key" className="w-12 h-12 text-[var(--gold)]"></i>
+                                </div>
+                                <div className="text-[var(--gold)] font-mono text-xs border border-[var(--gold)] px-3 py-1 rounded mb-6 tracking-widest bg-[var(--gold)]/10">OPPORTUNITY UNLOCKED</div>
+                                <h3 className="text-2xl font-bold text-white mb-3 text-center leading-snug">来自未来的<br/>增长蓝图</h3>
+                                <p className="text-zinc-500 text-sm text-center font-mono mt-4 flex items-center gap-2"><span>点击开启新篇章</span><i data-lucide="arrow-right" width="14"></i></p>
+                            </div>
+                            
+                            {/* 背面: 任务详情 */}
+                            <div className="absolute w-full h-full backface-hidden bg-[var(--paper-bg)] text-[#1a1a1a] rounded-2xl rotate-y-180 p-8 flex flex-col shadow-[0_0_50px_rgba(255,255,255,0.2)]" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-start mb-6 border-b-2 border-[#1a1a1a]/10 pb-4">
+                                    <div><div className="font-black text-xl uppercase tracking-tighter text-[#1a1a1a]">ACTION CARD</div><div className="text-[10px] font-mono text-zinc-500">定制化破局方案</div></div>
+                                    <div className="bg-[#1a1a1a] text-white text-xs px-2 py-1 font-mono rounded">{task.time}</div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto pr-2">
+                                    <h2 className="text-2xl font-black mb-4 leading-none text-[#1a1a1a]">{task.title}</h2>
+                                    <p className="text-sm text-zinc-700 leading-relaxed mb-6 font-serif">{task.desc}</p>
+                                    <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm">
+                                        <div className="text-xs font-bold mb-3 uppercase tracking-wide text-zinc-400">Execution Steps:</div>
+                                        <ul className="space-y-3">
+                                            {task.steps.map((step, i) => (
+                                                <li key={i} className="flex items-start gap-3 text-sm font-medium text-zinc-800">
+                                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">{i+1}</span>{step}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-zinc-200 text-center">
+                                    {!committed ? (
+                                        <button onClick={handleCommit} className="w-full py-3 bg-[#1a1a1a] text-white font-bold hover:bg-[var(--gold)] hover:text-black transition-all rounded-lg uppercase tracking-widest text-sm shadow-lg flex items-center justify-center gap-2">
+                                            <i data-lucide="sparkles" width="16"></i> 激活美好改变
+                                        </button>
+                                    ) : (
+                                        <div className="animate-pulse flex flex-col items-center py-2">
+                                            <div className="text-green-600 font-bold text-lg mb-1 flex items-center gap-2"><i data-lucide="check-circle" width="20"></i> 已激活</div>
+                                            <div className="text-xs font-mono text-zinc-500">Add expert contact below...</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* 专家卡 (激活后显示) */}
+                    {committed && (
+                        <div className="expert-card p-6 rounded-2xl text-center relative overflow-hidden fade-in max-w-md mx-auto w-full mb-10">
+                            <h4 className="text-[var(--gold)] font-bold mb-2 serif text-lg">遇到执行卡点？</h4>
+                            <p className="text-zinc-400 text-sm mb-6">我是企业管理专家，提供1对1战略复盘。</p>
+                            
+                            {showQR ? (
+                                <div className="fade-in bg-white p-4 rounded-xl mb-4 mx-auto w-48 h-48 flex items-center justify-center shadow-2xl relative border-4 border-[var(--gold)]">
+                                    <button onClick={() => setShowQR(false)} className="absolute top-2 right-2 text-black hover:text-red-500"><i data-lucide="x" width="16"></i></button>
+                                    <div className="text-center">
+                                        <i  src="./qr.png" alt="我的二维码" className="w-32 h-32 mx-auto mb-2 object-contain" />
+                                        <span className="text-[10px] text-zinc-500 font-mono block">扫码添加微信</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button onClick={() => setShowQR(true)} className="w-full py-3 bg-[var(--gold)] text-black font-bold font-mono text-sm rounded hover:bg-yellow-400 transition-all flex justify-center items-center gap-2">
+                                    预约专家咨询通道 <i data-lucide="chevron-down" width="16"></i>
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 3. 主控制器 (Main App)
+        // ==========================================
+
+        const App = () => {
+            const [view, setView] = useState('INTRO');
+            const [qIndex, setQIndex] = useState(0);
+            const [answers, setAnswers] = useState({});
+            const [persona, setPersona] = useState(null);
+            const [missionId, setMissionId] = useState(null);
+
+            const startAudit = () => setView('QUESTIONS');
+
+            const handleAnswer = (option) => {
+                const currentQ = DEEP_AUDIT_QUESTIONS[qIndex];
+                const newAnswers = { ...answers, [currentQ.id]: option };
+                setAnswers(newAnswers);
+
+                if (qIndex < DEEP_AUDIT_QUESTIONS.length - 1) {
+                    setQIndex(prev => prev + 1);
+                } else {
+                    setView('PROCESSING');
+                }
+            };
+
+            const handleProcessingComplete = () => {
+                const result = calculatePersona(answers);
+                setPersona(result);
+                setView('RESULT');
+            };
+
+            const goToMVP = () => setView('MVP_PROBE');
+
+            const handleProbeSelect = (route) => {
+                setMissionId(route);
+                setView('MVP_MISSION');
+            };
+
+            return (
+                <div className="antialiased selection:bg-[var(--accent)] selection:text-black">
+                    {view === 'INTRO' && <Intro onStart={startAudit} />}
+                    {view === 'QUESTIONS' && <QuestionScreen data={DEEP_AUDIT_QUESTIONS[qIndex]} current={qIndex} total={DEEP_AUDIT_QUESTIONS.length} onSelect={handleAnswer} />}
+                    {view === 'PROCESSING' && <Processing onComplete={handleProcessingComplete} />}
+                    {view === 'RESULT' && <ResultView persona={persona} onNext={goToMVP} />}
+                    {view === 'MVP_PROBE' && <ProbeView personaId={persona.id} onSelect={handleProbeSelect} />}
+                    {view === 'MVP_MISSION' && <MissionCard missionId={missionId} />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
