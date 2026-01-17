@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LifeOS：基于咨询顾问逻辑的个人生存审计系统。通过12个维度，精准诊断你的商业模式与生存状态。">
+    <meta property="og:title" content="LifeOS - 个人生存逻辑审计">
+    <meta property="og:description" content="不仅是体检，更是一次精准的手术。立即启动你的生存逻辑审计。">
+    <meta property="og:image" content="https://api.dicebear.com/7.x/shapes/svg?seed=LifeOS&backgroundColor=000000">
+    
     <title>LifeOS - 个人生存逻辑审计系统</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -33,6 +38,24 @@
         .report-paper { background-color: var(--paper); color: var(--ink); box-shadow: 0 0 50px rgba(0,0,0,0.5); background-image: radial-gradient(#e5e5e5 1px, transparent 1px); background-size: 20px 20px; }
         .stamp { mask-image: url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/8399/grunge.png'); mask-size: 944px 604px; mix-blend-mode: multiply; animation: stamp-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; opacity: 0; transform: scale(1.5) rotate(-15deg); border-width: 6px !important; font-weight: 900 !important; }
         @keyframes stamp-in { to { opacity: 1; transform: scale(1) rotate(-12deg); } }
+
+        /* Visual Report Card (New) */
+        .visual-card {
+            background: linear-gradient(135deg, #000 0%, #111 100%);
+            border: 1px solid #333;
+            position: relative;
+            overflow: hidden;
+        }
+        .visual-card::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.03) 10px, rgba(255,255,255,0.03) 20px);
+            pointer-events: none;
+        }
+        .holo-circle {
+            position: absolute; border-radius: 50%; border: 1px solid rgba(0, 240, 255, 0.1);
+            animation: holoPulse 4s infinite linear;
+        }
+        @keyframes holoPulse { 0% { transform: scale(0.8); opacity: 0; } 50% { opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
 
         /* Dashboard & Cards */
         .dash-card { background: linear-gradient(145deg, #111, #0a0a0a); border: 1px solid #222; border-radius: 1rem; position: relative; overflow: hidden; }
@@ -78,6 +101,11 @@
     </style>
 </head>
 <body>
+    <!-- 微信分享抓取图 (Trick for WeChat: Hidden First Image) -->
+    <div style="display:none;">
+        <img src="https://api.dicebear.com/7.x/shapes/svg?seed=LifeOS&backgroundColor=000000" alt="LifeOS Cover" />
+    </div>
+
     <div id="root"></div>
 
     <script type="text/babel">
