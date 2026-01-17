@@ -184,6 +184,53 @@
         // 2. VIEW COMPONENTS
         // ==========================================
 
+        // --- NEW VISUAL REPORT CARD COMPONENT (Visual Anchor) ---
+        const ResultShareCard = ({ persona, scores }) => {
+            const content = PERSONA_DB[persona];
+            const radarRef = useRef(null);
+
+            useEffect(() => {
+                if(radarRef.current) {
+                    const ctx = radarRef.current.getContext('2d');
+                    new Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: ['财务', '时间', '护城河', '精力', '战略'],
+                            datasets: [{
+                                data: [scores.financial, scores.time, scores.risk, scores.energy, 60],
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                borderColor: '#000',
+                                borderWidth: 1,
+                                pointRadius: 0
+                            }]
+                        },
+                        options: { scales: { r: { ticks: { display: false }, pointLabels: { display: false }, grid: { color: '#ccc' } } }, plugins: { legend: { display: false } } }
+                    });
+                }
+            }, [scores]);
+
+            return (
+                <div className="visual-card mb-8 rounded-xl p-6 text-white shadow-2xl relative">
+                    <div className="absolute top-4 right-4 text-[var(--accent)] border border-[var(--accent)] px-2 py-0.5 text-[10px] font-mono rounded">OFFICIAL AUDIT</div>
+                    
+                    {/* Glowing Circle Animation */}
+                    <div className="holo-circle w-32 h-32 top-[-20px] left-[-20px]"></div>
+
+                    <div className="flex justify-between items-end relative z-10">
+                        <div>
+                            <div className="text-zinc-400 text-xs font-mono mb-1">IDENTITY DETECTED</div>
+                            <h1 className="text-3xl font-black italic tracking-tighter text-white mb-2">{content.label}</h1>
+                            <div className="inline-block bg-white text-black text-xs font-bold px-2 py-1 font-mono">ID: {Math.random().toString(36).substr(2,6).toUpperCase()}</div>
+                        </div>
+                        <div className="w-20 h-20 opacity-80 bg-white/10 rounded-full flex items-center justify-center">
+                             {/* Mini Radar for Visual */}
+                             <canvas ref={radarRef} className="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const IntroView = ({ onStart }) => (
             <div className="h-screen flex flex-col items-center justify-center p-6 text-center fade-in bg-grid relative">
                 <div className="max-w-2xl mx-auto z-10">
@@ -243,6 +290,7 @@
         const ReportView = ({ answers, onNext, onRetry }) => {
             const personaKey = calculatePersona(answers);
             const content = PERSONA_DB[personaKey];
+            const scores = calculateScores(answers);
             const [showStamp, setShowStamp] = useState(false);
             useEffect(() => { setTimeout(() => setShowStamp(true), 800); }, []);
             const parseText = (text) => text.split(/(\*\*.*?\*\*)/g).map((part, i) => part.startsWith('**') && part.endsWith('**') ? <span key={i} className="font-bold bg-[var(--gold)]/20 px-1">{part.slice(2, -2)}</span> : part);
@@ -282,7 +330,6 @@
             const handleCommit = (e) => {
                 e.stopPropagation();
                 setCommitted(true);
-                // 关键点：按下手印后，跳转到 BRIDGE (专家连接页)
                 setTimeout(() => onCommit(userTask, true), 1200); 
             };
 
@@ -330,7 +377,7 @@
         };
 
         // --- THE CONNECTION (EXPERT PAGE) ---
-        const ExpertPage = ({ onDashboard, onBack }) => { // Added onBack prop support for overlay mode
+        const ExpertPage = ({ onDashboard, onBack }) => { 
             const [showQR, setShowQR] = useState(false);
             return (
                 <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 slide-up bg-grid">
@@ -356,22 +403,16 @@
                                 <div className="bg-white p-6 rounded-2xl mx-auto w-64 h-auto flex flex-col items-center justify-center shadow-2xl relative animate-pulse border-4 border-[var(--gold)]">
                                     <button onClick={() => setShowQR(false)} className="absolute top-2 right-2 text-black hover:text-red-500"><i data-lucide="x"></i></button>
                                     
-                                    {/* --- 请在这里替换您的二维码图片 --- */}
-                                    {/* 1. 将您的二维码图片放在同级目录下，命名为 qrcode.jpg */}
-                                    {/* 2. 或者直接修改下方的 src="qrcode.jpg" 为您的图片链接 */}
-                                    
                                     <img 
                                         src="qrcode.jpg" 
                                         alt="加我微信" 
                                         className="w-64 h-64 object-contain mb-2"
                                         onError={(e) => {
-                                            // 如果图片加载失败，回退显示图标，防止空白
                                             e.target.style.display='none';
                                             e.target.nextSibling.style.display='block';
                                         }}
                                     />
                                     
-                                    {/* 备用图标 (图片不存在时显示) */}
                                     <i data-lucide="qr-code" width="80" height="80" className="text-black mb-4" style={{display:'none'}}></i>
                                     
                                     <span className="text-xs text-zinc-500 font-mono font-bold">扫码添加小麦微信</span>
